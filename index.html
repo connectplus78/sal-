@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Plus - Medya Paneli</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #0f1015;
+            color: #ffffff;
+            overflow-x: hidden;
+            height: 100vh;
+        }
+        header {
+            padding: 20px 40px;
+            background-color: #171923;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d3748;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3182ce;
+            letter-spacing: 1px;
+        }
+        .search-box input {
+            padding: 10px 20px;
+            width: 300px;
+            background: #2d3748;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+        .container {
+            padding: 30px 40px;
+        }
+        h2 {
+            margin-bottom: 20px;
+            font-weight: 500;
+            color: #e2e8f0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: #1a202c;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
+        }
+        /* TV Kumandası Odaklanma Efekti */
+        .card:focus, .card.selected {
+            transform: scale(1.08);
+            border-color: #3182ce;
+            box-shadow: 0 10px 20px rgba(49, 130, 206, 0.4);
+            outline: none;
+        }
+        .card img {
+            width: 100%;
+            height: 260px;
+            object-fit: cover;
+        }
+        .card-title {
+            padding: 12px;
+            font-size: 14px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* TAM EKRAN OYNATICI (PLAYER) */
+        #player-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        #player-modal video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 10000;
+        }
+        .close-btn:focus {
+            background: #3182ce;
+            border-color: #3182ce;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">Connect Plus</div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Film veya kategori ara..." onkeyup="filterMovies()">
+        </div>
+    </header>
+
+    <div class="container">
+        <h2>Popüler İçerikler</h2>
+        <div class="grid" id="movieGrid">
+            <!-- Dinamik olarak dolacak -->
+        </div>
+    </div>
+
+    <!-- Tam Ekran Oynatıcı Katmanı -->
+    <div id="player-modal">
+        <button class="close-btn" id="closeBtn" onclick="closePlayer()">Kapat (Geri)</button>
+        <video id="videoPlayer" controls autoplay></video>
+    </div>
+
+    <script>
+        let moviesData = [];
+        let currentIndex = 0;
+        let cards = [];
+
+        // JSON Verisini Çekme
+        fetch('movies.json')
+            .then(response => response.json())
+            .then(data => {
+                moviesData = data;
+                renderGrid(moviesData);
+            })
+            .catch(err => console.log('Veri yüklenemedi:', err));
+
+        function renderGrid(data) {
+            const grid = document.getElementById('movieGrid');
+            grid.innerHTML = '';
+            data.forEach((movie, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.tabIndex = 0;
+                card.innerHTML = `
+                    <img src="${movie.poster || 'https://via.placeholder.com/180x260'}" alt="${movie.title}">
+                    <div class="card-title">${movie.title}</div>
+                `;
+                card.onclick = () => openPlayer(movie.url);
+                grid.appendChild(card);
+            });
+            cards = document.querySelectorAll('.card');
+            if(cards.length > 0) {
+                cards[0].classList.add('selected');
+            }
+        }
+
+        function filterMovies() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = moviesData.filter(m => m.title.toLowerCase().includes(query));
+            renderGrid(filtered);
+        }
+
+        function openPlayer(streamUrl) {
+            const modal = document.getElementById('player-modal');
+            const video = document.getElementById('videoPlayer');
+            modal.style.display = 'flex';
+            video.src = streamUrl; // Doğrudan akış veya video bağlantısı
+            video.play();
+            document.getElementById('closeBtn').focus();
+        }
+
+        function closePlayer() {
+            const modal = document.getElementById('player-modal');
+            const video = document.getElementById('videoPlayer');
+            video.pause();
+            video.src = '';
+            modal.style.display = 'none';
+            if(cards[currentIndex]) {
+                cards[currentIndex].focus();
+            }
+        }
+
+        // TV Box / Kumanda Yön Tuşları Yönetimi
+        window.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('player-modal');
+            
+            if (modal.style.display === 'flex') {
+                if (e.key === 'Escape' || e.key === 'Backspace') {
+                    closePlayer();
+                }
+                return;
+            }
+
+            if (cards.length === 0) return;
+
+            let cols = Math.floor(document.querySelector('.grid').offsetWidth / 200) || 4;
+
+            if (e.key === 'ArrowRight') {
+                currentIndex = Math.min(currentIndex + 1, cards.length - 1);
+                updateFocus();
+            } else if (e.key === 'ArrowLeft') {
+                currentIndex = Math.max(currentIndex - 1, 0);
+                updateFocus();
+            } else if (e.key === 'ArrowDown') {
+                currentIndex = Math.min(currentIndex + cols, cards.length - 1);
+                updateFocus();
+            } else if (e.key === 'ArrowUp') {
+                currentIndex = Math.max(currentIndex - cols, 0);
+                updateFocus();
+            } else if (e.key === 'Enter') {
+                cards[currentIndex].click();
+            }
+        });
+
+        function updateFocus() {
+            cards.forEach(c => c.classList.remove('selected'));
+            cards[currentIndex].classList.add('selected');
+            cards[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    </script>
+</body>
+</html>
